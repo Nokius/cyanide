@@ -48,7 +48,7 @@ private:
 
 public:
     Tox *tox;
-    ToxAv *toxav;
+    ToxAV *toxav;
     Settings settings;
 
     QString profile_name, next_profile_name;
@@ -136,11 +136,12 @@ public:
     Q_INVOKABLE QString pause_transfer(int mid, int fid);
     Q_INVOKABLE QString cancel_transfer(int mid, int fid);
 
-    Q_INVOKABLE void av_invite_accept(int fid);
-    Q_INVOKABLE void av_invite_reject(int fid);
-    Q_INVOKABLE void av_hangup(int fid);
-    Q_INVOKABLE void av_call(int fid);
-    Q_INVOKABLE void av_call_cancel(int fid);
+//    Q_INVOKABLE void av_invite_accept(int fid);
+//    Q_INVOKABLE void av_invite_reject(int fid);
+//    Q_INVOKABLE void av_hangup(int fid);
+//    Q_INVOKABLE void av_call(int fid);
+//    Q_INVOKABLE void av_call_cancel(int fid);
+    Q_INVOKABLE QString call(int fid, bool audio, bool video);
 
     /* setters and getters */
     Q_INVOKABLE QString get_profile_name();
