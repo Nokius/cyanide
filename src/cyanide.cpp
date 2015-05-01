@@ -378,11 +378,6 @@ void start_tox_thread(Cyanide *cyanide)
     cyanide->tox_thread();
 }
 
-void start_toxav_thread(Cyanide *cyanide)
-{
-    cyanide->toxav_thread();
-}
-
 void start_audio_thread(Cyanide *cyanide)
 {
     cyanide->audio_thread();
@@ -402,7 +397,21 @@ void Cyanide::tox_thread()
     do_bootstrap();
 
     // Start the tox av session.
-    toxav = toxav_new(tox, MAX_CALLS);
+    TOXAV_ERR_NEW error;
+    toxav = toxav_new(tox, &error);
+    switch(error) {
+        case TOXAV_ERR_NEW_OK:
+            break;
+        case TOXAV_ERR_NEW_NULL:
+            Q_ASSERT(false);
+            break;
+        case TOXAV_ERR_NEW_MALLOC:
+            qWarning() << "Failed to allocate memory for toxav";
+            break;
+        case TOXAV_ERR_NEW_MULTIPLE:
+            qWarning() << "Attemted to create second toxav session";
+            break;
+    };
 
     // Give toxcore the av functions to call
     set_av_callbacks();
@@ -414,15 +423,33 @@ void Cyanide::tox_thread()
 
 void Cyanide::tox_loop()
 {
-    std::thread toxav_thread(start_toxav_thread, this);
-    std::thread audio_thread(start_audio_thread, this);
-
     uint64_t last_save = get_time(), time;
     TOX_CONNECTION c, connection = c = TOX_CONNECTION_NONE;
 
+    uint32_t time_tox = tox_iteration_interval(tox);
+    uint32_t time_toxav = toxav_iteration_interval(toxav);
+
     while(loop == LOOP_RUN) {
-        // Put toxcore to work
-        tox_iterate(tox);
+
+        uint32_t interval_tox = tox_iteration_interval(tox);
+        if(time_tox >= interval_tox) {
+            time_tox -= interval_tox;
+            qDebug() << "tox_iterate()";
+            tox_iterate(tox);
+        }
+
+        uint32_t interval_toxav = tox_iteration_interval(tox);
+        if(time_toxav >= interval_toxav) {
+            time_toxav -= interval_toxav;
+            qDebug() << "toxav_iterate()";
+            toxav_iterate(toxav);
+        }
+
+        uint32_t interval = MIN(interval_tox, interval_toxav);
+        qDebug() << interval;
+
+        time_tox += interval;
+        time_toxav += interval;
 
         // Check current connection
         if((c = tox_self_get_connection_status(tox)) != connection) {
@@ -446,13 +473,7 @@ void Cyanide::tox_loop()
             }
         }
 
-        uint32_t interval = tox_iteration_interval(tox);
         usleep(1000 * MIN(interval, MAX_ITERATION_TIME));
-    }
-
-    if(loop != LOOP_SUSPEND) {
-        toxav_thread.join();
-        audio_thread.join();
     }
 
     uint64_t event;
@@ -496,28 +517,6 @@ void Cyanide::tox_loop()
                         << "save file" << tox_save_file();
             write_default_profile();
             tox_thread();
-            break;
-    }
-}
-
-void Cyanide::toxav_thread()
-{
-    while(loop == LOOP_RUN || loop == LOOP_SUSPEND) {
-        toxav_do(toxav);
-        usleep(toxav_do_interval(toxav));
-    }
-    switch(loop) {
-        case LOOP_RUN:
-            Q_ASSERT(false);
-            break;
-        case LOOP_FINISH:
-        case LOOP_RELOAD:
-        case LOOP_RELOAD_OTHER:
-            break;
-        case LOOP_SUSPEND:
-            Q_ASSERT(false);
-            break;
-        case LOOP_STOP:
             break;
     }
 }
@@ -754,6 +753,7 @@ void Cyanide::set_callbacks()
 
 void Cyanide::set_av_callbacks()
 {
+    /*
     toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_invite, av_OnInvite, this);
     toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_start, av_OnStart, this);
     toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_cancel, av_OnCancel, this);
@@ -769,6 +769,7 @@ void Cyanide::set_av_callbacks()
 
     toxav_register_audio_callback(toxav, (ToxAvAudioCallback)callback_av_audio, this);
     toxav_register_video_callback(toxav, (ToxAvVideoCallback)callback_av_video, this);
+    */
 }
 
 void Cyanide::send_typing_notification(int fid, bool typing)
@@ -820,7 +821,7 @@ QString Cyanide::send_friend_request_id(const uint8_t *id, const uint8_t *msg, s
 {
     TOX_ERR_FRIEND_ADD error;
     relocate_blocked_friend();
-    uint32_t fid = tox_friend_add(tox, id, msg, msg_length, &error);
+    uint32_t UNUSED(fid) = tox_friend_add(tox, id, msg, msg_length, &error);
     switch(error) {
         case TOX_ERR_FRIEND_ADD_OK:
             return "";
@@ -840,10 +841,6 @@ QString Cyanide::send_friend_request_id(const uint8_t *id, const uint8_t *msg, s
             return tr("Error: Invalid Tox ID (bad nospam value)");
         case TOX_ERR_FRIEND_ADD_MALLOC:
             return tr("Error: No memory");
-        default:
-            Q_ASSERT(fid != UINT32_MAX);
-            Q_ASSERT(fid == friends.size()-1);
-            return "";
     }
 }
 
@@ -1089,9 +1086,6 @@ int Cyanide::get_self_user_status()
             return 1;
         case TOX_USER_STATUS_BUSY:
             return 2;
-        default:
-            Q_ASSERT(false);
-            return 0;
     }
 }
 
@@ -1219,9 +1213,6 @@ QString Cyanide::get_friend_status_icon(int fid, bool online)
         case TOX_USER_STATUS_BUSY:
             url.append("busy");
             break;
-        default:
-            Q_ASSERT(false);
-            url.append("offline");
         }
     }
     
