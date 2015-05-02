@@ -380,9 +380,9 @@ void start_tox_thread(Cyanide *cyanide)
     cyanide->tox_thread();
 }
 
-void start_audio_thread(Cyanide *cyanide)
+void start_toxav_loop(Cyanide *cyanide)
 {
-    cyanide->audio_thread();
+    cyanide->toxav_loop();
 }
 
 void Cyanide::tox_thread()
@@ -425,33 +425,14 @@ void Cyanide::tox_thread()
 
 void Cyanide::tox_loop()
 {
-    uint64_t last_save = get_time(), time;
+    uint64_t now, last_save = get_time();
     TOX_CONNECTION c, connection = c = TOX_CONNECTION_NONE;
 
-    uint32_t time_tox = tox_iteration_interval(tox);
-    uint32_t time_toxav = toxav_iteration_interval(toxav);
+    std::thread toxav_thread(start_toxav_loop, this);
 
     while(loop == LOOP_RUN) {
 
-        uint32_t interval_tox = tox_iteration_interval(tox);
-        if(time_tox >= interval_tox) {
-            time_tox -= interval_tox;
-            qDebug() << "tox_iterate()";
-            tox_iterate(tox);
-        }
-
-        uint32_t interval_toxav = tox_iteration_interval(tox);
-        if(time_toxav >= interval_toxav) {
-            time_toxav -= interval_toxav;
-            qDebug() << "toxav_iterate()";
-            toxav_iterate(toxav);
-        }
-
-        uint32_t interval = MIN(interval_tox, interval_toxav);
-        qDebug() << interval;
-
-        time_tox += interval;
-        time_toxav += interval;
+        tox_iterate(tox);
 
         // Check current connection
         if((c = tox_self_get_connection_status(tox)) != connection) {
@@ -460,23 +441,25 @@ void Cyanide::tox_loop()
             qDebug() << (c != TOX_CONNECTION_NONE ? "Connected to DHT" : "Disconnected from DHT");
         }
 
-        time = get_time();
+        now = get_time();
 
         // Wait 1 million ticks then reconnect if needed and write save
-        if(time - last_save >= (uint64_t)10 * 1000 * 1000 * 1000) {
-            last_save = time;
+        if(now - last_save >= (uint64_t)10 * 1000 * 1000 * 1000) {
+            last_save = now;
 
             if(connection == TOX_CONNECTION_NONE) {
                 do_bootstrap();
             }
 
-            if (save_needed || (time - last_save >= (uint)100 * 1000 * 1000 * 1000)) {
+            if (save_needed || (now - last_save >= (uint)100 * 1000 * 1000 * 1000)) {
                 write_save();
             }
         }
 
-        usleep(1000 * MIN(interval, MAX_ITERATION_TIME));
+        usleep(1000 * MIN(tox_iteration_interval(tox), MAX_ITERATION_TIME));
     }
+
+    toxav_thread.join();
 
     uint64_t event;
     ssize_t tmp;
@@ -486,9 +469,7 @@ void Cyanide::tox_loop()
             break;
         case LOOP_FINISH:
             qDebug() << "exiting...";
-
             killall_tox();
-
             break;
         case LOOP_RELOAD:
             killall_tox();
@@ -496,13 +477,9 @@ void Cyanide::tox_loop()
             break;
         case LOOP_RELOAD_OTHER:
             qDebug() << "loading profile" << next_profile_name;
-
             killall_tox();
-
             profile_name = next_profile_name;
-
             write_default_profile();
-
             tox_thread();
             break;
         case LOOP_SUSPEND:
@@ -520,6 +497,14 @@ void Cyanide::tox_loop()
             write_default_profile();
             tox_thread();
             break;
+    }
+}
+
+void Cyanide::toxav_loop()
+{
+    while(loop == LOOP_RUN) {
+        toxav_iterate(toxav);
+        usleep(1000 * toxav_iteration_interval(toxav));
     }
 }
 
@@ -844,6 +829,7 @@ QString Cyanide::send_friend_request_id(const uint8_t *id, const uint8_t *msg, s
         case TOX_ERR_FRIEND_ADD_MALLOC:
             return tr("Error: No memory");
     }
+    return "";
 }
 
 std::vector<QString> split_message(QString rest)
@@ -1089,6 +1075,7 @@ int Cyanide::get_self_user_status()
         case TOX_USER_STATUS_BUSY:
             return 2;
     }
+    return 0;
 }
 
 void Cyanide::set_self_user_status(int status)

@@ -99,8 +99,7 @@ public:
 
     void tox_thread();
     void tox_loop();
-    void toxav_thread();
-    void audio_thread();
+    void toxav_loop();
 
     void suspend_thread();
     void resume_thread();
@@ -136,12 +135,17 @@ public:
     Q_INVOKABLE QString pause_transfer(int mid, int fid);
     Q_INVOKABLE QString cancel_transfer(int mid, int fid);
 
-//    Q_INVOKABLE void av_invite_accept(int fid);
-//    Q_INVOKABLE void av_invite_reject(int fid);
-//    Q_INVOKABLE void av_hangup(int fid);
-//    Q_INVOKABLE void av_call(int fid);
-//    Q_INVOKABLE void av_call_cancel(int fid);
-    Q_INVOKABLE QString call(int fid, bool audio, bool video);
+    uint32_t audio_bit_rate();
+    uint32_t video_bit_rate();
+
+    Q_INVOKABLE bool call(int fid, bool audio, bool video);
+    Q_INVOKABLE bool answer(int fid);
+    Q_INVOKABLE bool resume_call(int fid);
+    Q_INVOKABLE bool pause_call(int fid);
+    Q_INVOKABLE bool cancel_call(int fid);
+    Q_INVOKABLE bool toggle_mute_audio(int fid);
+    Q_INVOKABLE bool toggle_mute_video(int fid);
+    bool send_call_control(int fid, TOXAV_CALL_CONTROL action);
 
     /* setters and getters */
     Q_INVOKABLE QString get_profile_name();
@@ -209,8 +213,7 @@ public slots:
 };
 
 void start_tox_thread(Cyanide *cyanide);
-void start_toxav_thread(Cyanide *cyanide);
-void start_audio_thread(Cyanide *cyanide);
+void start_toxav_loop(Cyanide *cyanide);
 
 //: default username
 const QString DEFAULT_NAME = Cyanide::tr("Tox User");

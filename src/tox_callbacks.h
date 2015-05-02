@@ -99,7 +99,7 @@ void callback_file_chunk_request(Tox *tox, uint32_t friend_number, uint32_t file
                                  uint64_t position, size_t length, void *that);
 
 
-void callback_call(ToxAV *av, uint32_t fid, uint32_bool audio_enabled, bool video_enabled, void *that);
+void callback_call(ToxAV *av, uint32_t fid, bool audio_enabled, bool video_enabled, void *that);
 void callback_call_state(ToxAV *av, uint32_t fid, uint32_t state, void *that);
 void callback_audio_bit_rate_status(ToxAV *av, uint32_t fid, bool stable, uint32_t bit_rate, void *that);
 void callback_video_bit_rate_status(ToxAV *av, uint32_t fid, bool stable, uint32_t bit_rate, void *that);

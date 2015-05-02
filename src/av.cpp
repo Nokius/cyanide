@@ -6,26 +6,24 @@
 #include "unused.h"
 #include "util.h"
 
-uint32_t Cyanide::get_audio_bit_rate()
+uint32_t Cyanide::audio_bit_rate()
 {
-    return 123;
+    return 0;
 }
 
 uint32_t Cyanide::video_bit_rate()
 {
-    return 231;
+    return 0;
 }
 
-void callback_call(ToxAV *av, uint32_t fid, uint32_bool audio_enabled, bool video_enabled, void *that)
+/* set bitrate */
+
+void callback_call(ToxAV *av, uint32_t fid, bool audio_enabled, bool video_enabled, void *that)
 {
     qDebug() << "was called";
     Cyanide *cyanide = (Cyanide*)that;
 
     Friend *f = &cyanide->friends[fid];
-//    f->call_index = call_index;
-//    f->callstate = -2;
-//    emit cyanide->signal_friend_callstate(fid, f->callstate);
-//    emit cyanide->signal_av_invite(fid);
 }
 
 void callback_call_state(ToxAV *av, uint32_t fid, uint32_t state, void *that)
@@ -65,8 +63,8 @@ void callback_receive_audio_frame(ToxAV *av, uint32_t friend_number,
 bool Cyanide::call(int fid, bool audio, bool video)
 {
     TOXAV_ERR_CALL error;
-    uint32_t audio_bit_rate = audio ? audio_bit_rate() : 0;
-    uint32_t video_bit_rate = video ? video_bit_rate() : 0;
+    uint32_t audio_bit_rate = audio ? this->audio_bit_rate() : 0;
+    uint32_t video_bit_rate = video ? this->video_bit_rate() : 0;
     bool success = toxav_call(toxav, fid, audio_bit_rate, video_bit_rate, &error);
     switch(error) {
         case TOXAV_ERR_CALL_OK:
@@ -98,20 +96,49 @@ bool Cyanide::answer(int fid)
         case TOXAV_ERR_ANSWER_OK:
             break;
         case TOXAV_ERR_ANSWER_MALLOC:
+            qWarning() << "malloc failure";
             break;
         case TOXAV_ERR_ANSWER_FRIEND_NOT_FOUND:
+            qWarning() << "friend not found";
             break;
         case TOXAV_ERR_ANSWER_FRIEND_NOT_CALLING:
+            qWarning() << "friend not calling";
             break;
         case TOXAV_ERR_ANSWER_INVALID_BIT_RATE:
+            qWarning() << "invalid bit rate";
             break;
     };
     return success;
 }
 
-bool Cyanide::send_call_control(int fid, TOX_CALL_CONTROL action)
+bool Cyanide::resume_call(int fid)
 {
-    TOX_ERR_CALL_CONTROL error;
+    return send_call_control(fid, TOXAV_CALL_CONTROL_RESUME);
+}
+
+bool Cyanide::pause_call(int fid)
+{
+    return send_call_control(fid, TOXAV_CALL_CONTROL_PAUSE);
+}
+
+bool Cyanide::cancel_call(int fid)
+{
+    return send_call_control(fid, TOXAV_CALL_CONTROL_CANCEL);
+}
+
+bool Cyanide::toggle_mute_audio(int fid)
+{
+    return send_call_control(fid, TOXAV_CALL_CONTROL_TOGGLE_MUTE_AUDIO);
+}
+
+bool Cyanide::toggle_mute_video(int fid)
+{
+    return send_call_control(fid, TOXAV_CALL_CONTROL_TOGGLE_MUTE_VIDEO);
+}
+
+bool Cyanide::send_call_control(int fid, TOXAV_CALL_CONTROL action)
+{
+    TOXAV_ERR_CALL_CONTROL error;
     bool success = toxav_call_control(toxav, fid, action, &error);
     switch(error) {
         case TOXAV_ERR_CALL_CONTROL_OK:
@@ -138,7 +165,8 @@ bool Cyanide::send_call_control(int fid, TOX_CALL_CONTROL action)
     return success;
 }
 
-send_frame(int fid, bool video)
+/*
+bool Cyanide::send_frame(int fid, bool video)
 {
     bool success;
     TOXAV_ERR_SEND_FRAME error;
@@ -149,9 +177,10 @@ send_frame(int fid, bool video)
                                          NULL, NULL, NULL, // Y, U, V
                                          &error);
     } else {
-        pcm = NULL;
-        channels = 2;
-        sample_count = 0;
+        int16_t const pcm = NULL;
+        size_t sample_count = 0;
+        uint8_t channels = 2;
+        uint32_t sampling_rate = 4000;
         success = toxav_send_audio_frame(toxav, fid,
                                          pcm,
                                          sample_count,
@@ -182,52 +211,6 @@ send_frame(int fid, bool video)
             qWarning() << "RTP failed";
             break;
     };
-}
-
-// set bit rates
-
-/*
-void Cyanide::av_invite_accept(int fid)
-{
-    Friend *f = &friends[fid];
-//    ToxAvCSettings csettings = av_DefaultSettings;
-//    toxav_answer(toxav, f->call_index, &csettings);
-//    emit signal_friend_callstate(fid, (f->callstate = 2));
-}
-
-void Cyanide::av_invite_reject(int fid)
-{
-    Friend *f = &friends[fid];
-//    toxav_reject(toxav, f->call_index, ""); //TODO add reason
-    emit signal_friend_callstate(fid, (f->callstate = 0));
-}
-
-void Cyanide::av_call(int fid)
-{
-    Friend *f = &friends[fid];
-    if(f->callstate != 0)
-        notify_error("already in a call", "");
-
-//    ToxAvCSettings csettings = av_DefaultSettings;
-
-//    toxav_call(toxav, &f->call_index, fid, &csettings, 15);
-    emit signal_friend_callstate(fid, (f->callstate = -1));
-}
-
-void Cyanide::av_call_cancel(int fid)
-{
-    qDebug() << "cancelling call";
-    Friend *f = &friends[fid];
-    Q_ASSERT(f->callstate == -1);
-//    toxav_cancel(toxav, f->call_index, fid, "Call cancelled by friend");
-    emit signal_friend_callstate(fid, (f->callstate = 0));
-}
-
-void Cyanide::av_hangup(int fid)
-{
-    qDebug() << "hanging up";
-    Friend *f = &friends[fid];
-    toxav_hangup(toxav, f->call_index);
-    emit signal_friend_callstate(fid, (f->callstate = 0));
+    return success;
 }
 */

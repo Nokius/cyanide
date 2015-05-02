@@ -35,7 +35,5 @@ size_t qstrlen(QString str);
 void qstr_to_utf8(uint8_t *dest, QString src);
 
 uint64_t get_time();
-int get_time_ms();
-
 
 #endif // UTIL_H
