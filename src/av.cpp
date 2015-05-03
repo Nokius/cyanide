@@ -24,6 +24,9 @@ void callback_call(ToxAV *av, uint32_t fid, bool audio_enabled, bool video_enabl
     Cyanide *cyanide = (Cyanide*)that;
 
     Friend *f = &cyanide->friends[fid];
+    cyanide->notify_call(fid, f->name, "is calling"); // asdf translate
+    f->call_state = Call_State::Incoming | Call_State::Paused;
+    emit cyanide->signal_friend_call_state(fid, f->call_state);
 }
 
 void callback_call_state(ToxAV *av, uint32_t fid, uint32_t state, void *that)
@@ -50,6 +53,38 @@ void callback_receive_video_frame(ToxAV *av, uint32_t fid,
     qDebug() << "was called";
 }
 
+static void _()
+{
+    ALenum error = alGetError();
+    fprintf(stderr, "%X\n", error);
+    qDebug() << QString();
+}
+
+void Cyanide::audio_play(int16_t const *pcm,
+                         size_t sample_count,
+                         uint8_t channels,
+                         uint32_t sampling_rate)
+{
+    Q_ASSERT(channels == 1 || channels == 2);
+
+    ALuint buffer;
+    ALuint source;
+
+_();
+    alGenBuffers(1, &buffer);
+
+    alBufferData(buffer, (channels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16),
+                 pcm, sample_count * 2 * channels, sampling_rate);
+_();
+    alSourceQueueBuffers(source, 1, &buffer);
+_();
+
+    alSourcePlay(source);
+_();
+    //ALint state;
+    //alGetSourcei(source, 
+}
+
 void callback_receive_audio_frame(ToxAV *av, uint32_t friend_number,
                                   int16_t const *pcm,
                                   size_t sample_count,
@@ -58,56 +93,72 @@ void callback_receive_audio_frame(ToxAV *av, uint32_t friend_number,
                                   void *that)
 {
     qDebug() << "was called";
+    Cyanide *cyanide = (Cyanide*) that;
+    cyanide->audio_play(pcm, sample_count, channels, sampling_rate);
 }
 
 bool Cyanide::call(int fid, bool audio, bool video)
 {
     TOXAV_ERR_CALL error;
+    Friend *f = &friends[fid];
+
     uint32_t audio_bit_rate = audio ? this->audio_bit_rate() : 0;
     uint32_t video_bit_rate = video ? this->video_bit_rate() : 0;
     bool success = toxav_call(toxav, fid, audio_bit_rate, video_bit_rate, &error);
-    switch(error) {
-        case TOXAV_ERR_CALL_OK:
-            break;
-        case TOXAV_ERR_CALL_MALLOC:
-            qWarning() << "malloc";
-            break;
-        case TOXAV_ERR_CALL_FRIEND_NOT_FOUND:
-            qWarning() << "friend not found";
-            break;
-        case TOXAV_ERR_CALL_FRIEND_NOT_CONNECTED:
-            qWarning() << "friend not connected";
-            break;
-        case TOXAV_ERR_CALL_FRIEND_ALREADY_IN_CALL:
-            qWarning() << "friend already in call";
-            break;
-        case TOXAV_ERR_CALL_INVALID_BIT_RATE:
-            qWarning() << "invalid bit rate";
-            break;
-    };
+    if(success) {
+        f->call_state = Call_State::Outgoing | Call_State::Paused;
+        emit signal_friend_call_state(fid, f->call_state);
+    } else {
+        switch(error) {
+            case TOXAV_ERR_CALL_OK:
+                break;
+            case TOXAV_ERR_CALL_MALLOC:
+                qWarning() << "malloc";
+                break;
+            case TOXAV_ERR_CALL_FRIEND_NOT_FOUND:
+                qWarning() << "friend not found";
+                break;
+            case TOXAV_ERR_CALL_FRIEND_NOT_CONNECTED:
+                qWarning() << "friend not connected";
+                break;
+            case TOXAV_ERR_CALL_FRIEND_ALREADY_IN_CALL:
+                qWarning() << "friend already in call";
+                break;
+            case TOXAV_ERR_CALL_INVALID_BIT_RATE:
+                qWarning() << "invalid bit rate";
+                break;
+        };
+    }
     return success;
 }
 
 bool Cyanide::answer(int fid)
 {
     TOXAV_ERR_ANSWER error;
+    Friend *f = &friends[fid];
+
     bool success = toxav_answer(toxav, fid, audio_bit_rate(), video_bit_rate(), &error);
-    switch(error) {
-        case TOXAV_ERR_ANSWER_OK:
-            break;
-        case TOXAV_ERR_ANSWER_MALLOC:
-            qWarning() << "malloc failure";
-            break;
-        case TOXAV_ERR_ANSWER_FRIEND_NOT_FOUND:
-            qWarning() << "friend not found";
-            break;
-        case TOXAV_ERR_ANSWER_FRIEND_NOT_CALLING:
-            qWarning() << "friend not calling";
-            break;
-        case TOXAV_ERR_ANSWER_INVALID_BIT_RATE:
-            qWarning() << "invalid bit rate";
-            break;
-    };
+    if(success) {
+        f->call_state = Call_State::Active;
+        emit signal_friend_call_state(fid, f->call_state);
+    } else {
+        switch(error) {
+            case TOXAV_ERR_ANSWER_OK:
+                break;
+            case TOXAV_ERR_ANSWER_MALLOC:
+                qWarning() << "malloc failure";
+                break;
+            case TOXAV_ERR_ANSWER_FRIEND_NOT_FOUND:
+                qWarning() << "friend not found";
+                break;
+            case TOXAV_ERR_ANSWER_FRIEND_NOT_CALLING:
+                qWarning() << "friend not calling";
+                break;
+            case TOXAV_ERR_ANSWER_INVALID_BIT_RATE:
+                qWarning() << "invalid bit rate";
+                break;
+        };
+    }
     return success;
 }
 

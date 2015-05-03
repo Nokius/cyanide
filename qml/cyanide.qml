@@ -90,7 +90,7 @@ ApplicationWindow
                         'friend_status_message': cyanide.get_friend_status_message(i),
                         'friend_blocked': cyanide.get_friend_blocked(i),
                         'friend_address': settings.get_friend_address(cyanide.get_friend_public_key(i)),
-                        'friend_callstate': cyanide.get_friend_callstate(i)
+                        'friend_call_state': cyanide.get_friend_call_state(i)
                          })
     }
     function refreshMessageList() {
@@ -191,12 +191,9 @@ ApplicationWindow
                 refreshMessageList()
             }
         }
-        onSignal_friend_callstate: {
+        onSignal_friend_call_state: {
             var i = fid + 1
-            friendList.setProperty(i, "friend_callstate", callstate)
-        }
-        onSignal_av_invite: {
-            // cyanide.notify_call(fid, cyanide.get_friend_name(fid)+" "+qsTr("is calling"), "")
+            friendList.setProperty(i, "friend_call_state", call_state)
         }
         onSignal_file_status: {
             if(fid == activeFriend()) {

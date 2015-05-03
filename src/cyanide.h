@@ -137,6 +137,8 @@ public:
 
     uint32_t audio_bit_rate();
     uint32_t video_bit_rate();
+    void audio_play(int16_t const *pcm, size_t sample_count,
+                    uint8_t channels, uint32_t sampling_rate);
 
     Q_INVOKABLE bool call(int fid, bool audio, bool video);
     Q_INVOKABLE bool answer(int fid);
@@ -173,7 +175,7 @@ public:
     Q_INVOKABLE bool get_friend_connection_status(int fid);
     Q_INVOKABLE bool get_friend_accepted(int fid);
     Q_INVOKABLE bool get_friend_blocked(int fid);
-    Q_INVOKABLE int get_friend_callstate(int fid);
+    Q_INVOKABLE int get_friend_call_state(int fid);
 
     Q_INVOKABLE int get_message_type(int fid, int mid);
     Q_INVOKABLE bool get_message_author(int fid, int mid);
@@ -205,8 +207,7 @@ signals:
     void signal_file_status(int fid, int mid, int status);
     void signal_file_progress(int fid, int mid, int progress);
 
-    void signal_friend_callstate(int fid, int callstate);
-    void signal_av_invite(int fid);
+    void signal_friend_call_state(int fid, int call_state);
 
 public slots:
     void wifi_changed(QString str, QDBusVariant variant);

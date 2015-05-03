@@ -6,9 +6,21 @@
 
 #include "message.h"
 
+class Call_State : public QObject
+{
+    Q_OBJECT
+    Q_ENUMS(_)
+public:
+    enum _ { None      = 0
+           , Incoming  = 0x0001
+           , Outgoing  = 0x0002
+           , Active    = 0x0004
+           , Paused    = 0x0008
+           };
+};
+
 class Friend
 {
-
 public:
     Friend();
     Friend(const uint8_t *public_key, QString name, QString status_message);
@@ -25,8 +37,7 @@ public:
     bool activity;
     bool blocked;
 
-    int callstate;
-    int32_t call_index;
+    int call_state;
 
     File_Transfer avatar_transfer;
 

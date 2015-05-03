@@ -46,8 +46,10 @@ int main(int argc, char *argv[])
 
     std::thread my_tox_thread(start_tox_thread, cyanide);
 
-    qmlRegisterType<Message_Type>("harbour.cyanide", 1, 0, "Message_Type");
-    qmlRegisterType<File_State>("harbour.cyanide", 1, 0, "File_State");
+#define QML_EXPORT "harbour.cyanide", 1, 0
+    qmlRegisterType<Message_Type>(QML_EXPORT, "Message_Type");
+    qmlRegisterType<File_State>(QML_EXPORT, "File_State");
+    qmlRegisterType<Call_State>(QML_EXPORT, "Call_State");
     cyanide->view->rootContext()->setContextProperty("cyanide", cyanide);
     cyanide->view->rootContext()->setContextProperty("settings", &cyanide->settings);
     cyanide->view->setSource(SailfishApp::pathTo("qml/cyanide.qml"));
@@ -740,23 +742,12 @@ void Cyanide::set_callbacks()
 
 void Cyanide::set_av_callbacks()
 {
-    /*
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_invite, av_OnInvite, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_start, av_OnStart, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_cancel, av_OnCancel, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_reject, av_OnReject, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_end, av_OnEnd, this);
-
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_ringing, av_OnRinging, this);
-
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_requesttimeout, av_OnRequestTimeout, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_peertimeout, av_OnPeerTimeout, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_selfmediachange, av_OnSelfCSChange, this);
-    toxav_register_callstate_callback(toxav, (ToxAVCallback)callback_av_peermediachange, av_OnPeerCSChange, this);
-
-    toxav_register_audio_callback(toxav, (ToxAvAudioCallback)callback_av_audio, this);
-    toxav_register_video_callback(toxav, (ToxAvVideoCallback)callback_av_video, this);
-    */
+    toxav_callback_call(toxav, callback_call, this);
+    toxav_callback_call_state(toxav, callback_call_state, this);
+    toxav_callback_audio_bit_rate_status(toxav, callback_audio_bit_rate_status, this);
+    toxav_callback_video_bit_rate_status(toxav, callback_video_bit_rate_status, this);
+    toxav_callback_receive_audio_frame(toxav, callback_receive_audio_frame, this);
+    toxav_callback_receive_video_frame(toxav, callback_receive_video_frame, this);
 }
 
 void Cyanide::send_typing_notification(int fid, bool typing)
@@ -1026,10 +1017,10 @@ void Cyanide::set_friend_blocked(int fid, bool block)
     emit signal_friend_connection_status(fid, f->connection_status != TOX_CONNECTION_NONE);
 }
 
-int Cyanide::get_friend_callstate(int fid)
+int Cyanide::get_friend_call_state(int fid)
 {
     Friend f = fid == SELF_FRIEND_NUMBER ? self : friends[fid];
-    return f.callstate;
+    return f.call_state;
 }
 
 void Cyanide::set_self_name(QString name)

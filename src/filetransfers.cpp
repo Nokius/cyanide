@@ -246,8 +246,6 @@ void callback_file_recv_control(Tox *UNUSED(tox), uint32_t fid, uint32_t file_nu
                     qDebug() << "Failed to remove file" << m->text;
             }
             break;
-        default:
-            Q_ASSERT(false);
     }
     emit cyanide->signal_file_status(fid, mid, ft->status);
 }
@@ -329,8 +327,6 @@ void callback_file_chunk_request(Tox *tox, uint32_t fid, uint32_t file_number,
             case TOX_ERR_FILE_SEND_CHUNK_WRONG_POSITION:
                 qDebug() << "wrong position";
                 break;
-            default:
-                Q_ASSERT(false);
         }
     }
 
@@ -406,7 +402,6 @@ QString Cyanide::send_file_control(int fid, int mid, TOX_FILE_CONTROL action)
         qDebug() << "sent file control, new status:" << ft->status;
         if(mid >= 0)
             emit signal_file_status(fid, mid, ft->status);
-        return "";
     } else {
         qDebug() << "File control failed";
         switch(error) {
@@ -426,11 +421,9 @@ QString Cyanide::send_file_control(int fid, int mid, TOX_FILE_CONTROL action)
                 return tr("Error: Already paused");
             case TOX_ERR_FILE_CONTROL_SENDQ:
                 return tr("Error: Packet queue is full");
-            default:
-                Q_ASSERT(false);
-                return "Bug (please report): Unknown";
         }
     }
+    return "";
 }
 
 bool Cyanide::get_file_id(uint32_t fid, File_Transfer *ft)
@@ -528,8 +521,6 @@ QString Cyanide::send_file(TOX_FILE_KIND kind, int fid, QString path, uint8_t *f
             return tr("Error: Filename too long");
         case TOX_ERR_FILE_SEND_TOO_MANY:
             return tr("Error: Too many ongoing transfers");
-        default:
-            Q_ASSERT(false);
     }
 
     if(kind != TOX_FILE_KIND_AVATAR)

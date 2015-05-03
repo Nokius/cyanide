@@ -27,7 +27,6 @@ Dialog {
     }
 
     property int f: activeFriend()
-    property int callstate: friendList.get(f+1).friend_callstate
 
     DockedPanel {
         id: fileControlPanel
@@ -124,46 +123,6 @@ Dialog {
         anchors {
             fill: parent
             topMargin: page.isPortrait ? fileControlPanel.visibleSize : 0
-        }
-
-        PullDownMenu {
-            id: pullDownMenu
-            visible: callstate == -2
-
-            MenuItem {
-                id: accept
-                //: av call
-                // text: qsTr("Answer")
-                onClicked: {
-                    cyanide.av_invite_accept(f)
-                }
-            }
-        }
-
-        PushUpMenu {
-            id: pushUpMenu
-            visible: callstate != 0
-
-            MenuItem {
-                id: reject
-                //: av call
-                // text: qsTr("Ignore")
-                visible: callstate == -2
-                onClicked: cyanide.av_invite_reject(f)
-            }
-            MenuItem {
-                id: cancelCall
-                //: outgoing call
-                // text: qsTr("Cancel")
-                visible: callstate == -1
-                onClicked: cyanide.av_call_cancel(f)
-            }
-            MenuItem {
-                id: hangup
-                // text: qsTr("Hang up")
-                visible: callstate > 0
-                onClicked: cyanide.av_hangup(f)
-            }
         }
 
         PageHeader {
